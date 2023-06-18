@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 )
 
 type BlockResponse []struct {
@@ -82,7 +83,9 @@ func writeCSV(end int, s *[]BlockData) {
 	}
 }
 
-func queryBlocks(start int, end int) {
+func queryBlocks(start int, end int, ch chan<- int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	baseURL := "https://litepool.space/api/v1/blocks/"
 	var s []BlockData
 
@@ -120,8 +123,25 @@ func queryBlocks(start int, end int) {
 
 	// dump slice to csv file
 	writeCSV(end, &s)
+	ch <- start
 }
 
 func main() {
-	queryBlocks(1000000, 1000100)
+	var wg sync.WaitGroup
+	ch := make(chan int)
+
+	// spawn goroutines
+	for i := 0; i < 25; i++ {
+		wg.Add(1)
+		go queryBlocks(i*100000, i*100000+99999, ch, &wg)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for result := range ch {
+		fmt.Println(result)
+	}
 }
