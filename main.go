@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
 type BlockResponse []struct {
@@ -22,7 +24,6 @@ type BlockResponse []struct {
 
 type BlockData struct {
 	Height          int
-	Id              string
 	CoinbaseData    string
 	CoinbaseAddress string
 }
@@ -57,20 +58,35 @@ func checkBlock(blkResponse *BlockResponse, s *[]BlockData) (exists bool) {
 	return containsElement(s, blk[0].Extras.CoinbaseAddress)
 }
 
-func main() {
-	baseURL := "https://litepool.space/api/v1/blocks/"
-
+func writeCSV(end int, s *[]BlockData) {
 	// create CSV
-	// csvFile, err := os.Create("100k.csv")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	csvFile, err := os.Create(fmt.Sprint(end, ".csv"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	// csvFile.Close()
 
+	// write to CSV
+	w := csv.NewWriter(csvFile)
+	defer w.Flush()
+
+	blkData := *s
+
+	for _, record := range blkData {
+		d := []string{
+			fmt.Sprint(record.Height),
+			record.CoinbaseData,
+			record.CoinbaseAddress,
+		}
+		w.Write(d)
+	}
+}
+
+func queryBlocks(start int, end int) {
+	baseURL := "https://litepool.space/api/v1/blocks/"
 	var s []BlockData
 
-	// loop queries blocks
-	for blkNum := 500000; blkNum <= 501000; blkNum++ {
+	for blkNum := start; blkNum <= end; blkNum++ {
 		queryURL := fmt.Sprint(baseURL, blkNum)
 
 		response, err := http.Get(queryURL)
@@ -93,8 +109,8 @@ func main() {
 			continue
 		}
 
-		r := BlockData{blkResponse[0].Height,
-			blkResponse[0].Id,
+		r := BlockData{
+			blkResponse[0].Height,
 			blkResponse[0].Extras.CoinbaseData,
 			blkResponse[0].Extras.CoinbaseAddress,
 		}
@@ -102,4 +118,10 @@ func main() {
 		s = append(s, r)
 	}
 
+	// dump slice to csv file
+	writeCSV(end, &s)
+}
+
+func main() {
+	queryBlocks(1000000, 1000100)
 }
