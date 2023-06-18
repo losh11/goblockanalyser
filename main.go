@@ -45,6 +45,11 @@ func containsElement(slice *[]BlockData, address string) (exists bool) {
 
 func checkBlock(blkResponse *BlockResponse, s *[]BlockData) (exists bool) {
 	blk := *blkResponse
+
+	if len(blk) < 1 {
+		return true
+	}
+
 	if blk[0].Extras.Pool.Name != "Unknown" {
 		return true
 	}
@@ -86,7 +91,7 @@ func writeCSV(end int, s *[]BlockData) {
 func queryBlocks(start int, end int, ch chan<- int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	baseURL := "https://litepool.space/api/v1/blocks/"
+	baseURL := "http://localhost:8999/api/v1/blocks/"
 	var s []BlockData
 
 	for blkNum := start; blkNum <= end; blkNum++ {
@@ -131,9 +136,9 @@ func main() {
 	ch := make(chan int)
 
 	// spawn goroutines
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 48; i++ {
 		wg.Add(1)
-		go queryBlocks(i*100000, i*100000+99999, ch, &wg)
+		go queryBlocks(i*50000, i*50000+49999, ch, &wg)
 	}
 
 	go func() {
